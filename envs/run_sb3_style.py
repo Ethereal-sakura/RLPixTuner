@@ -127,6 +127,7 @@ if __name__ == "__main__":
     parser.add_argument("--param_noise_std", type=float, default=0.1)
     parser.add_argument("--use_param_noise_schedule", type=str2bool, default=False)
     parser.add_argument("--isp_inp_original", type=str2bool, default=True)
+    parser.add_argument("--accumulate_params", type=str2bool, default=True)
     parser.add_argument("--param_noise_schedule_initial", type=float, default=0.5)
     parser.add_argument("--wandb_proj", type=str, default='rlisp-sb3')
     parser.add_argument("--isp", type=str, default="wb",
@@ -178,6 +179,7 @@ if __name__ == "__main__":
                     "ddpg_gamma": args.ddpg_gamma,
                     "ema_rate": args.ema_rate,
                     "isp_inp_original": args.isp_inp_original,
+                    "accumulate_params": args.accumulate_params,
                     "net_arch": args.net_arch,
                     "loss_type": args.loss_type,
                     "loss_type_content": args.loss_type_content,
@@ -259,6 +261,7 @@ if __name__ == "__main__":
         'truncate_param': args.truncate_param,
         'truncate_retouch_mean': args.truncate_retouch_mean,
         'isp_inp_original': args.isp_inp_original,
+        'accumulate_params': args.accumulate_params,
         'loss_type': args.loss_type,
         'loss_type_content': args.loss_type_content,
         'loss_type_style': args.loss_type_style,
@@ -285,6 +288,7 @@ if __name__ == "__main__":
                            truncate_param=args.truncate_param,
                            truncate_retouch_mean=args.truncate_retouch_mean,
                            isp_inp_original=args.isp_inp_original,
+                           accumulate_params=args.accumulate_params,
                            loss_type=args.loss_type,
                            loss_type_style=args.loss_type_style,
                            loss_type_content=args.loss_type_content,

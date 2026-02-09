@@ -98,6 +98,7 @@ class ISPEnv(gym.Env):
                  truncate_param=False,
                  truncate_retouch_mean=False,
                  isp_inp_original=True,
+                 accumulate_params=True,
                  loss_type="l2",
                  reward_scale=1.0,
                  action_space_decay: Optional[float] = None,
@@ -122,6 +123,7 @@ class ISPEnv(gym.Env):
         self.truncate_param = truncate_param
         self.truncate_retouch_mean = truncate_retouch_mean
         self.isp_inp_original = isp_inp_original
+        self.accumulate_params = accumulate_params
         self.reward_scale = reward_scale
         self.eval_use_best_img = eval_use_best_img
         self.only_eval = only_eval
@@ -342,6 +344,16 @@ class ISPEnv(gym.Env):
             start += dim
         return tensor_list
 
+    def _accumulate_params(self, base_params, delta_params):
+        updated_params = []
+        for idx, delta in enumerate(delta_params):
+            a = self.isp_blocks.filters[idx].range_l
+            b = self.isp_blocks.filters[idx].range_r
+            updated = base_params[idx] + delta
+            updated = torch.clamp(updated, min=a, max=b)
+            updated_params.append(updated)
+        return updated_params
+
     def step(self, action):
         images_old = self.images.clone()
         param_dims = [filter.num_filter_parameters for filter in self.isp_blocks.filters]
@@ -349,12 +361,18 @@ class ISPEnv(gym.Env):
         self.actions_steps.append(action.tolist())
         # print(param_list)
 
-        if self.isp_inp_original:
-            self.images = self.isp_blocks.run(self.original_images, param_list)
+        if self.accumulate_params:
+            self.params = self._accumulate_params(self.params, param_list)
+            applied_params = self.params
         else:
-            self.images = self.isp_blocks.run(self.images, param_list)
+            self.params = param_list
+            applied_params = param_list
+
+        if self.isp_inp_original or self.accumulate_params:
+            self.images = self.isp_blocks.run(self.original_images, applied_params)
+        else:
+            self.images = self.isp_blocks.run(self.images, applied_params)
         self.steps = self.steps + 1
-        self.params = param_list
         self.obs_steps = self.steps
 
         if self.loss_type == 'l2':
@@ -370,7 +388,7 @@ class ISPEnv(gym.Env):
             raise NotImplementedError("not supported loss type")
         self.rewards = self.rewards * self.reward_scale
         self.terminated = (self.steps >= self.max_step)
-        self.params_steps.append(param_list)
+        self.params_steps.append(applied_params)
         self.reward_steps.append(self.rewards[0].clamp(min=-self.rewards_range, max=self.rewards_range).item())
         retouch_mean = torch.mean(self.images, dim=(1, 2, 3))[0]
         # truncated = torch.where(0.01 < retouch_mean, 1.0, 0.0)
