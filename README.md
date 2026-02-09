@@ -51,8 +51,37 @@ Here is the an example (subset) of the [FiveK-Random Evaluation Data](https://dr
 After downloading the data, run:
 
 ```
-python tools/process_data.py /path/to/your/dataset/directory
+python tools/process_data.py /path/to/your/dataset/directory --output_name image_pairs
 ```
+
+### MIT-Adobe FiveK (full setup)
+
+Below is a recommended structure for using the MIT-Adobe FiveK dataset with this repo:
+
+```
+/path/to/fivek_processed/
+  train/
+    ExpertC0001-Input.jpg
+    ExpertC0001-Target.jpg
+    ...
+    image_pairs
+  val/
+    ExpertC4501-Input.jpg
+    ExpertC4501-Target.jpg
+    ...
+    image_pairs
+```
+
+Notes:
+- Use `*-Input` as the original image and `*-Target` as the expert retouch (e.g., Expert C).
+- The `image_pairs` file is a JSON list of `[input_path, target_path]` pairs and is required by the loader.
+
+### Rendering mode and Lightroom ranges
+
+- **Cumulative rendering** (accumulate parameters, re-render from the original input each step) is enabled by
+  `--accumulate_params True` and `--isp_inp_original True` in the provided scripts.
+- **Lightroom-aligned ranges** are configured via `cfg.use_lightroom_ranges` and `cfg.lightroom_ranges` in `config.py`.
+  White balance remains **per-channel gain** (not Lightroom temperature/tint).
 
 ### Model
 
