@@ -71,6 +71,20 @@ class Filter(torch.nn.Module):
             self.fc_mask = nn.Linear(cfg.fc1_size, self.get_num_mask_parameters())
         self.predict = predict
 
+    def use_lightroom_ranges(self):
+        return bool(getattr(self.cfg, "use_lightroom_ranges", False))
+
+    def get_range_from_cfg(self, default_l, default_r):
+        if self.use_lightroom_ranges():
+            ranges = getattr(self.cfg, "lightroom_ranges", None) or {}
+            if self.__class__.__name__ in ranges:
+                return ranges[self.__class__.__name__]
+        return default_l, default_r
+
+    def using_lightroom_params(self):
+        ranges = getattr(self.cfg, "lightroom_ranges", None) or {}
+        return self.use_lightroom_ranges() and self.__class__.__name__ in ranges
+
     def get_short_name(self):
         assert self.short_name
         return self.short_name
@@ -269,11 +283,12 @@ class ExposureFilter(Filter):
 
     def __init__(self, cfg, predict=False):
         Filter.__init__(self, cfg, 'E', 1, predict)
-        self.range_l = -self.cfg.exposure_range
-        self.range_r = self.cfg.exposure_range
+        self.range_l, self.range_r = self.get_range_from_cfg(
+            -self.cfg.exposure_range, self.cfg.exposure_range
+        )
 
     def filter_param_regressor(self, features):
-        return tanh_range(-self.cfg.exposure_range, self.cfg.exposure_range, initial=0)(features)
+        return tanh_range(self.range_l, self.range_r, initial=0)(features)
 
     def process(self, img, param):
         return img * torch.exp(param[:, :, None, None] * np.log(2))
@@ -312,8 +327,13 @@ class ImprovedWhiteBalanceFilter(Filter):
         Filter.__init__(self, cfg, 'W', 3, predict)
         self.num_filter_parameters = self.channels
         self.log_wb_range = 0.5
-        self.range_l = math.exp(-self.log_wb_range)
-        self.range_r = math.exp(self.log_wb_range)
+        default_l = math.exp(-self.log_wb_range)
+        default_r = math.exp(self.log_wb_range)
+        self.range_l, self.range_r = self.get_range_from_cfg(default_l, default_r)
+        if self.use_lightroom_ranges() and self.__class__.__name__ in getattr(self.cfg, "lightroom_ranges", {}):
+            self.log_wb_range = math.log(self.range_r)
+            self.range_l = math.exp(-self.log_wb_range)
+            self.range_r = math.exp(self.log_wb_range)
         # self.range_r = math.exp(self.log_wb_range)
         # self.range_l = 1 - (self.range_l - 1)
         self.init_params = [1., 1., 1.]
@@ -458,14 +478,20 @@ class ContrastFilter(Filter):
 
     def __init__(self, cfg, predict=False):
         Filter.__init__(self, cfg, 'Ct', 1, predict)
-        self.range_l = -1
-        self.range_r = 1
+        self.range_l, self.range_r = self.get_range_from_cfg(-1.0, 1.0)
 
     def filter_param_regressor(self, features):
-        # return tf.sigmoid(features)
-        return torch.tanh(features)
+        return tanh_range(self.range_l, self.range_r)(features)
 
     def process(self, img, param):
+        if self.using_lightroom_params():
+            c = torch.clamp(param, min=-100.0, max=100.0)
+            c = c * 1.5  # scale Lightroom [-100,100] to a softer contrast curve
+            factor = (259.0 * (c + 255.0)) / (255.0 * (259.0 - c))
+            factor = factor[:, :, None, None]
+            out = (img - 0.5) * factor + 0.5
+            return torch.clamp(out, 0.0, 1.0)
+        param = param / self.range_r
         luminance = torch.clip(rgb2lum(img), 0.0, 1.0)
         contrast_lum = -torch.cos(math.pi * luminance) * 0.5 + 0.5
         contrast_image = img / (luminance + 1e-6) * contrast_lum
@@ -631,16 +657,19 @@ class SaturationFilter(Filter):
         Filter.__init__(self, cfg, 'S+', 1, predict)
         self.short_name = 'S+'
         self.num_filter_parameters = 1
-        self.range_l = -1.
-        self.range_r = 1.
+        self.range_l, self.range_r = self.get_range_from_cfg(-1.0, 1.0)
 
     def filter_param_regressor(self, features):
-        return torch.tanh(features)
+        return tanh_range(self.range_l, self.range_r)(features)
 
     def process(self, img, param):
-        param = param + 1.
+        if self.using_lightroom_params():
+            factor = 1.0 + torch.clamp(param, min=-100.0, max=100.0) / 100.0
+            factor = torch.clamp(factor, min=0.0)
+        else:
+            factor = param / self.range_r + 1.0
         for b in range(img.shape[0]):
-            img[b] = adjust_saturation(img[b].unsqueeze(0), param[b][0].item())
+            img[b] = adjust_saturation(img[b].unsqueeze(0), factor[b][0].item())
         return img
 
     def visualize_filter(self, debug_info, canvas):
@@ -650,12 +679,11 @@ class SaturationFilter(Filter):
 class HighlightFilter(Filter):
     def __init__(self, cfg, predict=False):
         super().__init__(cfg, 'H+', 1, predict)
-        self.range_l = -1.
-        self.range_r = 1.
+        self.range_l, self.range_r = self.get_range_from_cfg(-1.0, 1.0)
         self.num_filter_parameters = 1
 
     def filter_param_regressor(self, features):
-        return torch.tanh(features)
+        return tanh_range(self.range_l, self.range_r)(features)
 
     def process(self, img, param):
         # Normalize parameter to a range effective for our sigmoid-based mask
@@ -678,25 +706,28 @@ class HighlightFilter(Filter):
 
         hsv_images = rgb2hsv(img)
         v = hsv_images[:, 2:3, :, :]  # Extract the V channel
-        parameters = param.view(-1, 1, 1, 1)  # Ensure parameters are broadcastable
-        highlights_mask = torch.sigmoid((v - 1) * 13)
-        adjusted_v = 1 - (1 - v) * (1 - highlights_mask * parameters * 13)
+        if self.using_lightroom_params():
+            strength = torch.clamp(param, min=-100.0, max=100.0) / 100.0
+        else:
+            strength = param / self.range_r
+        strength = strength.view(-1, 1, 1, 1)
+        highlights_mask = torch.sigmoid((v - 0.6) * 10.0)
+        pos = torch.clamp(strength, min=0.0)
+        neg = torch.clamp(strength, max=0.0)
+        adjusted_v = v + pos * highlights_mask * (1.0 - v) + neg * highlights_mask * v
         adjusted_v = torch.clamp(adjusted_v, 0, 1)
         hsv_images[:, 2:3, :, :] = adjusted_v
-        # print("!!!!@@@", torch.mean(img - hsv2rgb(hsv_images)))
-        img = hsv2rgb(hsv_images)
-        return img
+        return hsv2rgb(hsv_images)
 
 
 class ShadowFilter(Filter):
     def __init__(self, cfg, predict=False):
         super().__init__(cfg, 'S-', 1, predict)
-        self.range_l = -1.
-        self.range_r = 1.
+        self.range_l, self.range_r = self.get_range_from_cfg(-1.0, 1.0)
         self.num_filter_parameters = 1
 
     def filter_param_regressor(self, features):
-        return torch.tanh(features)
+        return tanh_range(self.range_l, self.range_r)(features)
 
     def process(self, img, param):
         # Normalize parameter to a range effective for our sigmoid-based mask
@@ -713,14 +744,18 @@ class ShadowFilter(Filter):
 
         hsv_images = rgb2hsv(img)
         v = hsv_images[:, 2:3, :, :]  # Extract the V channel
-        parameters = param.view(-1, 1, 1, 1)  # Ensure parameters are broadcastable
-        shadows_mask = 1 - torch.sigmoid((v - 0) * 12)
-        adjusted_v = v * (1 + shadows_mask * parameters * 12)
+        if self.using_lightroom_params():
+            strength = torch.clamp(param, min=-100.0, max=100.0) / 100.0
+        else:
+            strength = param / self.range_r
+        strength = strength.view(-1, 1, 1, 1)
+        shadows_mask = torch.sigmoid((0.4 - v) * 10.0)
+        pos = torch.clamp(strength, min=0.0)
+        neg = torch.clamp(strength, max=0.0)
+        adjusted_v = v + pos * shadows_mask * (1.0 - v) + neg * shadows_mask * v
         adjusted_v = torch.clamp(adjusted_v, 0, 1)
         hsv_images[:, 2:3, :, :] = adjusted_v
-        # print("!!!!@@@", torch.mean(img - hsv2rgb(hsv_images)))
-        img = hsv2rgb(hsv_images)
-        return img
+        return hsv2rgb(hsv_images)
 
 
 
@@ -781,14 +816,18 @@ class SharpenFilter(Filter):
 
     def __init__(self, cfg, predict=False):
         Filter.__init__(self, cfg, 'Shr', 1, predict)
-        self.range_l, self.range_r = self.cfg.usm_sharpen_range
+        self.range_l, self.range_r = self.get_range_from_cfg(*self.cfg.usm_sharpen_range)
 
     def filter_param_regressor(self, features):
-        return tanh_range(*self.cfg.sharpen_range)(features)
+        return tanh_range(self.range_l, self.range_r)(features)
 
     def process(self, img, param):
         # param shape [batch, 1]
-        return adjust_sharpness(img, param[:, :, None, None])
+        if self.using_lightroom_params():
+            factor = 1.0 + torch.clamp(param, min=0.0, max=150.0) / 100.0
+        else:
+            factor = param
+        return adjust_sharpness(img, factor[:, :, None, None])
 
     def visualize_filter(self, debug_info, canvas):
         sigma = 5

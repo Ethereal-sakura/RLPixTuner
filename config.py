@@ -83,6 +83,19 @@ cfg.sharpen_range = (0.0, 10.0)
 cfg.ccm_range = (-2.0, 2.0)
 cfg.denoise_range = (0.0, 1.0)
 
+# Lightroom-aligned parameter ranges (used for action -> ISP mapping).
+# NOTE: White balance here is still per-channel gain, not LR temperature/tint.
+cfg.use_lightroom_ranges = True
+cfg.lightroom_ranges = {
+    "ExposureFilter": (-5.0, 5.0),
+    "ImprovedWhiteBalanceFilter": (0.5, 2.0),
+    "SaturationFilter": (-100.0, 100.0),
+    "ContrastFilter": (-100.0, 100.0),
+    "HighlightFilter": (-100.0, 100.0),
+    "ShadowFilter": (-100.0, 100.0),
+    "SharpenFilter": (0.0, 150.0),
+}
+
 # Masking is DISABLED
 cfg.masking = False
 cfg.minimum_strength = 0.3

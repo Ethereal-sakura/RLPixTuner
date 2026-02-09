@@ -96,6 +96,7 @@ class ISPStyleEnv(gym.Env):
                  truncate_param=False,
                  truncate_retouch_mean=False,
                  isp_inp_original=True,
+                 accumulate_params=True,
                  loss_type="style",
                  loss_type_content="vgg",
                  loss_type_style="gram",
@@ -126,6 +127,7 @@ class ISPStyleEnv(gym.Env):
         self.truncate_param = truncate_param
         self.truncate_retouch_mean = truncate_retouch_mean
         self.isp_inp_original = isp_inp_original
+        self.accumulate_params = accumulate_params
         self.reward_scale = reward_scale
         self.eval_use_best_img = eval_use_best_img
 
@@ -328,6 +330,16 @@ class ISPStyleEnv(gym.Env):
             start += dim
         return tensor_list
 
+    def _accumulate_params(self, base_params, delta_params):
+        updated_params = []
+        for idx, delta in enumerate(delta_params):
+            a = self.isp_blocks.filters[idx].range_l
+            b = self.isp_blocks.filters[idx].range_r
+            updated = base_params[idx] + delta
+            updated = torch.clamp(updated, min=a, max=b)
+            updated_params.append(updated)
+        return updated_params
+
     def get_extreme(self, score_list):
         if self.loss_type in ["psnr"]:
             return max(score_list)
@@ -375,12 +387,18 @@ class ISPStyleEnv(gym.Env):
         param_list = self.action_to_tensor_list(action, param_dims)
         self.actions_steps.append(action.tolist())
 
-        if self.isp_inp_original:
-            self.images = self.isp_blocks.run(self.original_images, param_list)
+        if self.accumulate_params:
+            self.params = self._accumulate_params(self.params, param_list)
+            applied_params = self.params
         else:
-            self.images = self.isp_blocks.run(self.images, param_list)
+            self.params = param_list
+            applied_params = param_list
+
+        if self.isp_inp_original or self.accumulate_params:
+            self.images = self.isp_blocks.run(self.original_images, applied_params)
+        else:
+            self.images = self.isp_blocks.run(self.images, applied_params)
         self.steps = self.steps + 1
-        self.params = param_list
         # self.params_steps.append(param_list)
         self.image_steps.append(self.images[0])
         self.obs_steps = self.steps
@@ -408,7 +426,7 @@ class ISPStyleEnv(gym.Env):
 
         self.rewards = self.rewards * self.reward_scale
         self.terminated = (self.steps >= self.max_step)
-        self.params_steps.append(param_list)
+        self.params_steps.append(applied_params)
         self.reward_steps.append(self.rewards[0].clamp(min=-self.rewards_range, max=self.rewards_range).item())
         retouch_mean = torch.mean(self.images, dim=(1, 2, 3))[0]
         self.truncated = False
