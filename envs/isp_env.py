@@ -16,6 +16,7 @@ from criterion import PSNR, structural_similarity_index_measure
 import matplotlib.pyplot as plt
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from tools.laplacian_pyramid import get_laplacian_option
+from lightroom_params import save_params_lightroom, LightroomParamConverter
 
 # import stable_baselines3 as sb3
 env_debug = False
@@ -97,13 +98,14 @@ class ISPEnv(gym.Env):
                  joint_obs=True,
                  truncate_param=False,
                  truncate_retouch_mean=False,
-                 isp_inp_original=True,
+                 isp_inp_original=True,  # True: cumulative rendering from original image each step
                  loss_type="l2",
                  reward_scale=1.0,
                  action_space_decay: Optional[float] = None,
                  only_eval=False,
                  eval_use_best_img=False,
                  save_freq=1000,
+                 use_lightroom_params=True,  # Save parameters in Lightroom format
                  device='cuda'):
         super(ISPEnv, self).__init__()
 
@@ -126,6 +128,11 @@ class ISPEnv(gym.Env):
         self.eval_use_best_img = eval_use_best_img
         self.only_eval = only_eval
         self.inp_laplacian = obs_inp_laplacian  # 0 -> no laplacian; 1 -> first layer; 2 -> last layer; 3 -> all pyramid
+        self.use_lightroom_params = use_lightroom_params
+        
+        # Initialize Lightroom parameter converter
+        if self.use_lightroom_params:
+            self.lightroom_converter = LightroomParamConverter(isp_blocks)
 
         self.dataset = LoadImagesAndLabelsRAWReplay_target(
             data_path,
@@ -442,6 +449,21 @@ class ISPEnv(gym.Env):
                     save_img(self.image_steps[self.psnr_steps.index(max(self.psnr_steps))], self.images_pth_list[0], self.image_dir, f"{self.num_timestep}_out_{psnr_str}")
                     save_img(self.original_images[0], self.images_pth_list[0], self.image_dir, f"{self.num_timestep}_in")
                     save_img(self.targets[0], self.images_pth_list[0], self.image_dir, f"{self.num_timestep}_target")
+                    
+                    # Save parameters in Lightroom format if enabled
+                    if self.use_lightroom_params:
+                        # Get best params (at best PSNR step)
+                        best_step_idx = self.psnr_steps.index(max(self.psnr_steps))
+                        best_params = self.params_steps[best_step_idx]
+                        
+                        _, fullflname = os.path.split(self.images_pth_list[0])
+                        fname, _ = os.path.splitext(fullflname)
+                        lr_save_path = os.path.join(self.image_dir, fname, f"{fname}_{self.num_timestep}_para_lightroom.json")
+                        os.makedirs(os.path.dirname(lr_save_path), exist_ok=True)
+                        
+                        save_params_lightroom(best_params, self.isp_blocks, lr_save_path, include_internal=True)
+                    
+                    # Save original format parameters
                     if len(self.isp_blocks.filters) > 1:
                         save_params_steps(self.params_steps, self.images_pth_list[0], self.image_dir, f"{self.num_timestep}_para")
                     else:

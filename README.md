@@ -46,12 +46,31 @@ Prepare the input-target data pairs like:
 ...
 ```
 
-Here is the an example (subset) of the [FiveK-Random Evaluation Data](https://drive.google.com/file/d/1LgaaLnVm1MXrDTlFAMzka6_PbdqwR1yE/view?usp=sharing) we used in our paper.
+**Dataset Setup:**
+- We use MIT-Adobe FiveK dataset with 4,500 training images and 500 validation images
+- For detailed dataset preparation instructions (download, extraction, organization), see:
+  - **English**: [FIVEK_DATASET_GUIDE_CN.md](./FIVEK_DATASET_GUIDE_CN.md) (Chinese guide with detailed steps)
+  - **Quick Start**: [QUICK_START_CN.md](./QUICK_START_CN.md) (Chinese quick start guide)
+- Here is an example (subset) of the [FiveK-Random Evaluation Data](https://drive.google.com/file/d/1LgaaLnVm1MXrDTlFAMzka6_PbdqwR1yE/view?usp=sharing) we used in our paper.
+
+**Dataset Structure:**
+```
+/path/to/your/dataset/
+├── train/
+│   ├── ExpertC0001-Input.tif
+│   ├── ExpertC0001-Target.tif
+│   └── ... (4,500 pairs)
+└── val/
+    ├── ExpertC4501-Input.tif
+    ├── ExpertC4501-Target.tif
+    └── ... (500 pairs)
+```
 
 After downloading the data, run:
 
 ```
-python tools/process_data.py /path/to/your/dataset/directory
+python tools/process_data.py /path/to/your/dataset/train
+python tools/process_data.py /path/to/your/dataset/val
 ```
 
 ### Model
@@ -90,6 +109,28 @@ Specify the training data path in `bash/train.sh`. Then run:
 ```
 bash bash/train.sh
 ```
+
+**Important Configuration:**
+- **Cumulative Rendering** (Default): `--isp_inp_original True`
+  - Each step starts from the original image and applies ISP operations cumulatively
+  - This is the recommended setting for training and evaluation
+  - Allows the model to learn complete ISP pipeline parameters at each step
+
+- **Lightroom Parameter Export**: `--use_lightroom_params True` (Default)
+  - Saves parameters in Lightroom-compatible format for better interpretability
+  - See [LIGHTROOM_PARAMS_GUIDE_CN.md](./LIGHTROOM_PARAMS_GUIDE_CN.md) for details
+
+- **Lightroom Rendering Engine** (Important): `cfg.use_lightroom_ranges = True` (Default)
+  - **Rendering engine now uses Lightroom-standard parameter ranges**
+  - Model directly learns and outputs Lightroom-compatible parameters
+  - **Parameter Ranges**:
+    - Exposure: -5 to +5 EV (was -2 to +2)
+    - Saturation/Contrast/Highlights/Shadows: -100 to +100 (was -1 to +1)
+    - Sharpness: 0 to 150 (was 0 to 10)
+  - **Example**: Model outputs `saturation=30` means +30% saturation (Lightroom format)
+  - See [LIGHTROOM_RENDERING_ENGINE_CN.md](./LIGHTROOM_RENDERING_ENGINE_CN.md) for details
+  - **Note**: This is a breaking change - old models need retraining
+
 We recommend tuning these hyper-parameters first: `agent_lr, value_lr, replay_size, ddpg_gamma, ema_rate`.
 
 ## Citation

@@ -130,6 +130,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--param_noise_std", type=float, default=0.1)
     parser.add_argument("--use_param_noise_schedule", type=str2bool, default=False)
+    # Cumulative rendering: True means each step starts from original image (cumulative rendering from original)
     parser.add_argument("--isp_inp_original", type=str2bool, default=True)
     parser.add_argument("--param_noise_schedule_initial", type=float, default=0.5)
     parser.add_argument("--wandb_proj", type=str, default='rlisp-sb3')
@@ -144,6 +145,8 @@ if __name__ == "__main__":
     parser.add_argument("--env_img_sz", type=int, default=64)
     parser.add_argument("--eval_save_freq", type=int, default=2000)
     parser.add_argument("--cnn_output_dim", type=int, default=256)
+    parser.add_argument("--use_lightroom_params", type=str2bool, default=True,
+                        help="Save parameters in Lightroom-compatible format")
     # eval
     parser.add_argument("--model_path", type=str, default=None,
                         help="load model to eval")
@@ -250,6 +253,7 @@ if __name__ == "__main__":
         'isp_inp_original': args.isp_inp_original,
         'loss_type': args.loss_type,
         'reward_scale': args.reward_scale,
+        'use_lightroom_params': args.use_lightroom_params,
     }
 
 
@@ -274,6 +278,7 @@ if __name__ == "__main__":
                       reward_scale=args.reward_scale,
                       eval_use_best_img=args.eval_use_best_img,
                       save_freq=args.eval_save_freq,
+                      use_lightroom_params=args.use_lightroom_params,
                       only_eval=True,
                       )
     eval_env.reset()
