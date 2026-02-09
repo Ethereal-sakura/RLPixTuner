@@ -116,11 +116,20 @@ bash bash/train.sh
   - This is the recommended setting for training and evaluation
   - Allows the model to learn complete ISP pipeline parameters at each step
 
-- **Lightroom Parameter Export** (New): `--use_lightroom_params True` (Default)
+- **Lightroom Parameter Export**: `--use_lightroom_params True` (Default)
   - Saves parameters in Lightroom-compatible format for better interpretability
-  - Maps internal parameters (-1 to 1) to standard photography terms
-  - Example: Exposure (-5 to +5 EV), Saturation (-100 to +100), etc.
   - See [LIGHTROOM_PARAMS_GUIDE_CN.md](./LIGHTROOM_PARAMS_GUIDE_CN.md) for details
+
+- **Lightroom Rendering Engine** (Important): `cfg.use_lightroom_ranges = True` (Default)
+  - **Rendering engine now uses Lightroom-standard parameter ranges**
+  - Model directly learns and outputs Lightroom-compatible parameters
+  - **Parameter Ranges**:
+    - Exposure: -5 to +5 EV (was -2 to +2)
+    - Saturation/Contrast/Highlights/Shadows: -100 to +100 (was -1 to +1)
+    - Sharpness: 0 to 150 (was 0 to 10)
+  - **Example**: Model outputs `saturation=30` means +30% saturation (Lightroom format)
+  - See [LIGHTROOM_RENDERING_ENGINE_CN.md](./LIGHTROOM_RENDERING_ENGINE_CN.md) for details
+  - **Note**: This is a breaking change - old models need retraining
 
 We recommend tuning these hyper-parameters first: `agent_lr, value_lr, replay_size, ddpg_gamma, ema_rate`.
 
