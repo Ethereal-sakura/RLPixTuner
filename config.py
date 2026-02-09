@@ -71,15 +71,33 @@ cfg.param_noise_scales = [1., 0.5, 0.25, 0.1, 0.01, 0., 0., 0., 0., 0., 0., 0., 
 # Gamma = 1/x ~ x
 cfg.curve_steps = 8
 cfg.gamma_range = 3
-# cfg.exposure_range = 3.5
-cfg.exposure_range = 2.0
+
+# ============================================================================
+# Lightroom-compatible parameter ranges (渲染引擎使用Lightroom范围)
+# ============================================================================
+cfg.use_lightroom_ranges = True  # 使用Lightroom兼容的参数范围
+
+# Exposure: Lightroom uses -5 to +5 EV
+cfg.exposure_range = 5.0  # -5.0 to +5.0 EV
+
+# White Balance: Keep as multipliers (0.5 to 2.0)
 cfg.wb_range = 1.1
 cfg.wb_param_norm = False
+
+# Saturation, Contrast, Highlights, Shadows: -100 to +100 (Lightroom style)
+cfg.saturation_range = 100.0  # -100 to +100
+cfg.contrast_range = 100.0    # -100 to +100
+cfg.highlight_range = 100.0   # -100 to +100
+cfg.shadow_range = 100.0      # -100 to +100
+
+# Sharpness: 0 to 150 (Lightroom style)
+cfg.sharpen_range = 150.0     # 0 to 150
+
+# Legacy ranges (for other filters if needed)
 cfg.color_curve_range = (0.90, 1.10)
 cfg.lab_curve_range = (0.90, 1.10)
 cfg.tone_curve_range = (0.5, 2)
-cfg.usm_sharpen_range = (0.0, 2.0)  # wikipedia recommended sigma 0.5-2.0; amount 0.5-1.5
-cfg.sharpen_range = (0.0, 10.0)
+cfg.usm_sharpen_range = (0.0, 2.0)
 cfg.ccm_range = (-2.0, 2.0)
 cfg.denoise_range = (0.0, 1.0)
 

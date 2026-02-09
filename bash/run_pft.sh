@@ -5,6 +5,7 @@ export WANDB_MODE=online;
 
 # Photo Finishing Tuning Evaluation with cumulative rendering
 # Cumulative rendering (isp_inp_original=True) means each step starts from original image
+# Now using Lightroom-compatible parameter ranges (see LIGHTROOM_RENDERING_ENGINE_CN.md)
 
 CUDA_VISIBLE_DEVICES=0 python envs/run_sb3_eval.py \
   --save_path "experiments" \
@@ -12,8 +13,8 @@ CUDA_VISIBLE_DEVICES=0 python envs/run_sb3_eval.py \
   --model_path "/input/your/path/to/model" \
   --dataset_dir "/input/your/path/to/dataset" \
   --isp_inp_original True \
-  --param_noise_std 0.02 \
-  --target_policy_noise 0.04 \
+  --param_noise_std 5.0 \
+  --target_policy_noise 10.0 \
   --max_step 10 \
   --replay_size 16384 \
   --joint_obs False \

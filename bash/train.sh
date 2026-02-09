@@ -6,6 +6,15 @@ export WANDB_MODE=online;
 # Training with cumulative rendering (isp_inp_original=True)
 # Cumulative rendering means each step starts from the original image and applies all filters cumulatively
 # This allows the model to learn the full ISP pipeline parameters at each step
+#
+# IMPORTANT: Now using Lightroom-compatible parameter ranges
+# - Exposure: -5 to +5 EV (instead of -2 to +2)
+# - Saturation/Contrast/Highlights/Shadows: -100 to +100 (instead of -1 to +1)
+# - Sharpness: 0 to 150
+#
+# You may need to adjust noise parameters for the larger ranges:
+# --param_noise_std 5.0 (instead of 0.02)
+# --target_policy_noise 10.0 (instead of 0.04)
 
 CUDA_VISIBLE_DEVICES=0 python envs/run_sb3.py \
   --save_path "experiments" \
@@ -15,8 +24,8 @@ CUDA_VISIBLE_DEVICES=0 python envs/run_sb3.py \
   --agent_lr 5e-4 \
   --value_lr 5e-5 \
   --isp_inp_original True \
-  --param_noise_std 0.02 \
-  --target_policy_noise 0.04 \
+  --param_noise_std 5.0 \
+  --target_policy_noise 10.0 \
   --max_step 10 \
   --replay_size 16384 \
   --joint_obs False \
