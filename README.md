@@ -46,12 +46,31 @@ Prepare the input-target data pairs like:
 ...
 ```
 
-Here is the an example (subset) of the [FiveK-Random Evaluation Data](https://drive.google.com/file/d/1LgaaLnVm1MXrDTlFAMzka6_PbdqwR1yE/view?usp=sharing) we used in our paper.
+**Dataset Setup:**
+- We use MIT-Adobe FiveK dataset with 4,500 training images and 500 validation images
+- For detailed dataset preparation instructions (download, extraction, organization), see:
+  - **English**: [FIVEK_DATASET_GUIDE_CN.md](./FIVEK_DATASET_GUIDE_CN.md) (Chinese guide with detailed steps)
+  - **Quick Start**: [QUICK_START_CN.md](./QUICK_START_CN.md) (Chinese quick start guide)
+- Here is an example (subset) of the [FiveK-Random Evaluation Data](https://drive.google.com/file/d/1LgaaLnVm1MXrDTlFAMzka6_PbdqwR1yE/view?usp=sharing) we used in our paper.
+
+**Dataset Structure:**
+```
+/path/to/your/dataset/
+├── train/
+│   ├── ExpertC0001-Input.tif
+│   ├── ExpertC0001-Target.tif
+│   └── ... (4,500 pairs)
+└── val/
+    ├── ExpertC4501-Input.tif
+    ├── ExpertC4501-Target.tif
+    └── ... (500 pairs)
+```
 
 After downloading the data, run:
 
 ```
-python tools/process_data.py /path/to/your/dataset/directory
+python tools/process_data.py /path/to/your/dataset/train
+python tools/process_data.py /path/to/your/dataset/val
 ```
 
 ### Model
@@ -90,6 +109,13 @@ Specify the training data path in `bash/train.sh`. Then run:
 ```
 bash bash/train.sh
 ```
+
+**Important Configuration:**
+- **Cumulative Rendering** (Default): `--isp_inp_original True`
+  - Each step starts from the original image and applies ISP operations cumulatively
+  - This is the recommended setting for training and evaluation
+  - Allows the model to learn complete ISP pipeline parameters at each step
+
 We recommend tuning these hyper-parameters first: `agent_lr, value_lr, replay_size, ddpg_gamma, ema_rate`.
 
 ## Citation

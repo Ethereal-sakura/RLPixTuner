@@ -97,7 +97,7 @@ class ISPEnv(gym.Env):
                  joint_obs=True,
                  truncate_param=False,
                  truncate_retouch_mean=False,
-                 isp_inp_original=True,
+                 isp_inp_original=True,  # True: cumulative rendering from original image each step
                  loss_type="l2",
                  reward_scale=1.0,
                  action_space_decay: Optional[float] = None,

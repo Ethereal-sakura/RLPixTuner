@@ -95,7 +95,7 @@ class ISPStyleEnv(gym.Env):
                  joint_obs=True,
                  truncate_param=False,
                  truncate_retouch_mean=False,
-                 isp_inp_original=True,
+                 isp_inp_original=True,  # True: cumulative rendering from original image each step
                  loss_type="style",
                  loss_type_content="vgg",
                  loss_type_style="gram",

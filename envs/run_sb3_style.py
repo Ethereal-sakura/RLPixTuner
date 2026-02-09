@@ -126,6 +126,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--param_noise_std", type=float, default=0.1)
     parser.add_argument("--use_param_noise_schedule", type=str2bool, default=False)
+    # Cumulative rendering: True means each step starts from original image (cumulative rendering from original)
     parser.add_argument("--isp_inp_original", type=str2bool, default=True)
     parser.add_argument("--param_noise_schedule_initial", type=float, default=0.5)
     parser.add_argument("--wandb_proj", type=str, default='rlisp-sb3')
