@@ -81,6 +81,7 @@ Notes:
 - **Cumulative rendering** (accumulate parameters, re-render from the original input each step) is enabled by
   `--accumulate_params True` and `--isp_inp_original True` in the provided scripts.
 - **Lightroom-aligned ranges** are configured via `cfg.use_lightroom_ranges` and `cfg.lightroom_ranges` in `config.py`.
+  When enabled, the filters consume Lightroom-range parameters directly (approximate Lightroom behavior).
   White balance remains **per-channel gain** (not Lightroom temperature/tint).
 
 ### Model
