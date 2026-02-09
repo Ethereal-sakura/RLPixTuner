@@ -116,6 +116,12 @@ bash bash/train.sh
   - This is the recommended setting for training and evaluation
   - Allows the model to learn complete ISP pipeline parameters at each step
 
+- **Lightroom Parameter Export** (New): `--use_lightroom_params True` (Default)
+  - Saves parameters in Lightroom-compatible format for better interpretability
+  - Maps internal parameters (-1 to 1) to standard photography terms
+  - Example: Exposure (-5 to +5 EV), Saturation (-100 to +100), etc.
+  - See [LIGHTROOM_PARAMS_GUIDE_CN.md](./LIGHTROOM_PARAMS_GUIDE_CN.md) for details
+
 We recommend tuning these hyper-parameters first: `agent_lr, value_lr, replay_size, ddpg_gamma, ema_rate`.
 
 ## Citation
